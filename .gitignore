@@ -6,3 +6,5 @@ __pycache__/
 .sessions/
 *.sqlite*
 node_modules/
+
+source/

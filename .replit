@@ -1,7 +1,9 @@
 run = "python3 replit-app/server.py"
-entrypoint = "server.py"
+entrypoint = "replit-app/server.py"
 modules = ["python-3.11"]
 
 [[ports]]
 localPort = 3000
 externalPort = 80
+
+[nix]
