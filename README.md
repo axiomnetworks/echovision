@@ -1,3 +1,9 @@
+# EchoVision standalone preview
+
+New Replit source is in [replit-app](replit-app). Run: `python3 replit-app/server.py`. AI is off. No media uploads or deployment. See its README for scope and checks.
+
+## Earlier inactive Modal preparation
+
 # EchoVision
 
 Web-only GitHub-to-Modal preparation. No Replit or local Mac required.
