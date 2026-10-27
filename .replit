@@ -1,9 +1,10 @@
 run = "python3 replit-app/server.py"
 entrypoint = "replit-app/server.py"
 modules = ["python-3.11"]
-
 [[ports]]
 localPort = 3000
 externalPort = 80
-
-[nix]
+[deployment]
+run = ["python3","replit-app/server.py"]
+build = ["sh","-c","python3 -m pip install -r replit-app/requirements.txt"]
+deploymentTarget = "vm"
