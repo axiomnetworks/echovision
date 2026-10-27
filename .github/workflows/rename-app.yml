@@ -1,0 +1,18 @@
+name: rename-app-folder
+on: workflow_dispatch
+permissions:
+  contents: write
+jobs:
+  rename:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Move replit-app to app
+        run: |
+          git mv replit-app app
+          sed -i 's#replit-app/server.py#app/server.py#g' README.md app/README.md
+          git config user.name "axiomnetworks"
+          git config user.email "axiomnetworks@users.noreply.github.com"
+          git add -A
+          git commit -m "Rename replit-app folder to app"
+          git push origin HEAD:main
