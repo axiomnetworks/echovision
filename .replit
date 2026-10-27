@@ -8,3 +8,4 @@ externalPort = 80
 run = ["python3","replit-app/server.py"]
 build = ["sh","-c","python3 -m pip install -r replit-app/requirements.txt"]
 deploymentTarget = "vm"
+ignorePorts = false
