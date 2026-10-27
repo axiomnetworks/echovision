@@ -37,6 +37,7 @@ async function sendClip(blob,mine,capturedAt){
   $('fresh').textContent='Last clip captured '+new Date(capturedAt).toLocaleTimeString()+'. Result is '+age+' seconds behind now.';
   const text=result.state==='lost_view'?'Target view lost. '+result.evidence:result.state==='uncertain'?'Uncertain. '+result.evidence:
     result.confirmed?'Requested change observed in the recorded clip. AI results can be wrong. '+result.evidence:result.state==='candidate'?'Possible change, not enough evidence to confirm. '+result.evidence:'Watching. '+result.evidence;
+  if(result.timings_seconds)record("Stage seconds: "+JSON.stringify(result.timings_seconds));
   record(text);announce(text);
   if(result.confirmed){stop('Watch complete. '+text);return false;}
   if(result.remaining<=0){stop('Approved analysis allowance reached. Camera is off.');return false;}
