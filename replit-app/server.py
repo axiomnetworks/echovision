@@ -99,7 +99,9 @@ class Handler(SimpleHTTPRequestHandler):
                 remaining=reserve() # durable atomic reservation before any provider call, never refunded
                 RESERVED+=1
             db_seconds=round(time.monotonic()-begun,3)
-            result=analyze_clip(mp4,session['target'],session['change'],session['state'].get('evidence',''),os.environ['META_API_KEY'])
+            parallel=(os.environ.get('ECHO_EXPERIMENT')=='parallel-comparison-8' and MAX_CLIPS==8 and os.environ.get('ECHO_ALLOWANCE_ID')=='approved-parallel8-20261027' and remaining%2==0)
+            result=analyze_clip(mp4,session['target'],session['change'],session['state'].get('evidence',''),os.environ['META_API_KEY'],parallel=parallel)
+            result['evidence']=('Parallel experiment: ' if parallel else 'Baseline: ')+result['evidence']
             with LOCK:
                 if session.get('stopped'):raise Unavailable('Stopped. An already submitted request may finish at Meta; no result announced.')
                 result.setdefault('timings_seconds',{}).update({'transcode':transcode_seconds,'database':db_seconds})
