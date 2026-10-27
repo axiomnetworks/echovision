@@ -5,9 +5,17 @@ class Engine(unittest.TestCase):
   t='<0f>3<|box;x1=1;y1=2;x2=3;y2=4;w=640;h=480;c=0.9|><|mask;x=0;y=0;data=1|>\n<1f>3<|box;x1=2;y1=2;x2=4;y2=4;w=640;h=480|><|mask;x=0;y=0;data=2|>'
   x=track_summary(t);self.assertEqual(len(x['tracks']['3']),2);self.assertEqual(x['visible_frames'],[0,1])
  def test_empty(self):self.assertEqual(track_summary('')['tracks'],{})
- def test_gate(self):
-  x={'state':'candidate','evidence':'Cup moved right','event_key':'cup moved','confidence':.95}
-  a=event_gate(x,{});self.assertFalse(a['confirmed']);self.assertTrue(event_gate(x,a)['confirmed'])
+ def test_one_off(self):
+  x={'state':'candidate','evidence':'Cup moved right within clip','event_key':'cup moved','confidence':.95,'temporal_frames':8}
+  self.assertTrue(event_gate(x,{})['confirmed']);self.assertEqual(event_gate(x,{})['state'],'observed')
+ def test_temporal_boundary(self):
+  x={'state':'candidate','evidence':'Cup','event_key':'cup moved','confidence':.95,'temporal_frames':2}
+  self.assertFalse(event_gate(x,{})['confirmed'])
+  x['temporal_frames']=3; x['confidence']=.89;self.assertFalse(event_gate(x,{})['confirmed'])
+ def test_stationary_and_camera_motion(self):
+  for state in ('watching','uncertain','lost_view'):
+   x={'state':state,'evidence':'No reliable event','event_key':'cup moved','confidence':.99,'temporal_frames':8}
+   self.assertFalse(event_gate(x,{'pending_key':'cup moved'})['confirmed'])
  def test_lost_clears(self):
   self.assertFalse(event_gate({'state':'lost_view','evidence':'No cup','confidence':.99},{'pending_key':'cup moved'})['confirmed'])
  def test_pipeline(self):

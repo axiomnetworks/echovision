@@ -57,7 +57,7 @@ medical, navigation or safety decisions. Missing targets, lower counts, camera m
 Compare with prior text cautiously; IDs are valid only within this clip, never across clips.
 Return JSON only: {"state":"watching|candidate|lost_view|uncertain","evidence":"short observed facts",
 "event_key":"short stable event phrase or empty","confidence":0.0}.
-Use candidate only if the requested event itself is directly visible in this clip, not merely inferred from absence.
+Use candidate only if the requested event itself is directly visible across multiple moments within this clip, not merely inferred from absence. Camera motion, zoom, occlusion or uncertain temporal evidence must be uncertain, never candidate.
 Use lost_view if the target cannot be observed reliably. Never say someone left the room from disappearance.
 Keep evidence under 220 characters. Do not announce success or an event that is not visually supported.'''
 
@@ -67,7 +67,8 @@ def analyze_clip(mp4,target,change,previous,key,call=provider):
         {'type':'input_text','text':target},{'type':'input_video','video_url':video}]}],
         'metadata':{'include_confidence':'true'},'store':False,'stream':False}
     tracks=track_summary(output_text(call('responses',sam,key)))
-    if len(tracks["tracks"])>2 or any(len(v)>8 for v in tracks["tracks"].values()): raise Unavailable("This restricted demo accepts at most two targets in eight frames. No reasoning request sent.")
+    if len(tracks['tracks'])>2 or any(len(v)>8 for v in tracks['tracks'].values()):
+        raise Unavailable('This test accepts at most two targets in eight frames. No reasoning request was made.')
     prompt=json.dumps({'target':target,'requested_change':change,'previous_observation':previous,
                         'clip_seconds_max':4,'segmentation':tracks},ensure_ascii=True)
     content=[{'type':'input_text','text':prompt},{'type':'input_video','video_url':video}]
@@ -89,12 +90,14 @@ def analyze_clip(mp4,target,change,previous,key,call=provider):
         raise Unavailable('Analysis returned an unsupported answer. No event was announced.')
     if not tracks['tracks'] and result['state']=='candidate': result['state']='uncertain'
     if result['confidence']<0.85 and result['state']=='candidate': result['state']='uncertain'
+    result['temporal_frames']=len(tracks['visible_frames'])
     return result
 
 def event_gate(result,prior):
-    """Two independent consecutive clips support an alert, never an absence-only exit claim."""
+    """A single clip can support a one-off observed event, never guaranteed truth."""
     key=result.get('event_key','').strip().lower()
-    confirmed=(result['state']=='candidate' and key and prior.get('pending_key')==key)
+    observed=(result['state']=='candidate' and bool(key) and
+              result.get('temporal_frames',0)>=3 and result['confidence']>=0.90)
     return {'pending_key':key if result['state']=='candidate' else '',
-        'confirmed':bool(confirmed),'state':result['state'],'evidence':result['evidence'],
-        'event_key':key,'confidence':result['confidence']}
+        'confirmed':bool(observed),'state':'observed' if observed else result['state'],
+        'evidence':result['evidence'],'event_key':key,'confidence':result['confidence']}
