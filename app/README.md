@@ -4,7 +4,7 @@ Python backend + accessible browser UI, Meta-hosted SAM3.1 and Standard Muse Spa
 
 ## Run
 
-Python3.11+; `pip install -r requirements.txt`, then `python3 server.py` (or from repository root `python3 replit-app/server.py`). `PORT` defaults3000. ffmpeg ships via pinned imageio-ffmpeg. No Replit Agent or GPU needed.
+Python3.11+; `pip install -r requirements.txt`, then `python3 server.py` (or from repository root `python3 app/server.py`). `PORT` defaults3000. ffmpeg ships via pinned imageio-ffmpeg. No Replit Agent or GPU needed.
 
 ## Private settings
 
