@@ -1,5 +1,5 @@
 """Clip pipeline. No provider access occurs unless explicitly enabled by the operator."""
-import base64, json, os, re, subprocess, tempfile, urllib.request
+import base64, json, os, re, subprocess, tempfile, time, urllib.request
 from pathlib import Path
 API='https://api.meta.ai/v1/'
 class Unavailable(Exception): pass
@@ -62,11 +62,17 @@ Use lost_view if the target cannot be observed reliably. Never say someone left 
 Keep evidence under 220 characters. Do not announce success or an event that is not visually supported.'''
 
 def analyze_clip(mp4,target,change,previous,key,call=provider):
+    timings={}
+    def timed(path,payload,key):
+        begun=time.monotonic();value=call(path,payload,key)
+        label='sam' if payload.get('model')=='sam-3.1' else 'tokenizer' if path.endswith('input_tokens') else 'reasoning'
+        timings[label]=round(time.monotonic()-begun,3)
+        return value
     video='data:video/mp4;base64,'+base64.b64encode(mp4).decode()
     sam={'model':'sam-3.1','input':[{'type':'message','role':'user','content':[
         {'type':'input_text','text':target},{'type':'input_video','video_url':video}]}],
         'metadata':{'include_confidence':'true'},'store':False,'stream':False}
-    tracks=track_summary(output_text(call('responses',sam,key)))
+    tracks=track_summary(output_text(timed('responses',sam,key)))
     if len(tracks['tracks'])>2 or any(len(v)>8 for v in tracks['tracks'].values()):
         raise Unavailable('This test accepts at most two targets in eight frames. No reasoning request was made.')
     prompt=json.dumps({'target':target,'requested_change':change,'previous_observation':previous,
@@ -75,11 +81,11 @@ def analyze_clip(mp4,target,change,previous,key,call=provider):
     request={'model':'muse-spark-1.3','instructions':SYSTEM,
         'input':[{'type':'message','role':'user','content':content}],
         'store':False,'max_output_tokens':4000,'reasoning':{'effort':'low'},'stream':False}
-    count=call('responses/input_tokens',{'model':request['model'],'instructions':SYSTEM,'input':request['input']},key)
+    count=timed('responses/input_tokens',{'model':request['model'],'instructions':SYSTEM,'input':request['input']},key)
     tokens=count.get('input_tokens')
     if type(tokens) is not int or not 0<tokens<=10000:
         raise Unavailable('Reasoning input exceeds the configured allowance. No reasoning request was made.')
-    text=output_text(call('responses',request,key)).strip()
+    text=output_text(timed('responses',request,key)).strip()
     try:
         result=json.loads(text)
         assert result['state'] in ('watching','candidate','lost_view','uncertain')
@@ -90,6 +96,7 @@ def analyze_clip(mp4,target,change,previous,key,call=provider):
         raise Unavailable('Analysis returned an unsupported answer. No event was announced.')
     if not tracks['tracks'] and result['state']=='candidate': result['state']='uncertain'
     if result['confidence']<0.85 and result['state']=='candidate': result['state']='uncertain'
+    result['timings_seconds']=timings
     result['temporal_frames']=len(tracks['visible_frames'])
     return result
 
@@ -100,4 +107,4 @@ def event_gate(result,prior):
               result.get('temporal_frames',0)>=3 and result['confidence']>=0.90)
     return {'pending_key':key if result['state']=='candidate' else '',
         'confirmed':bool(observed),'state':'observed' if observed else result['state'],
-        'evidence':result['evidence'],'event_key':key,'confidence':result['confidence']}
+        'evidence':result['evidence'],'event_key':key,'confidence':result['confidence'],'timings_seconds':result.get('timings_seconds',{})}
