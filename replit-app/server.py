@@ -90,15 +90,19 @@ class Handler(SimpleHTTPRequestHandler):
             if RESERVED>=MAX_CLIPS:return self.reply(429,{'error':'Approved demo clip allowance is exhausted. Camera must stop.'})
             session['busy']=True; session['last']=time.time()
         try:
-            raw=base64.b64decode(body.get('clip',''),validate=True); mp4=normalize_clip(raw)
+            begun=time.monotonic(); raw=base64.b64decode(body.get('clip',''),validate=True); mp4=normalize_clip(raw)
+            transcode_seconds=round(time.monotonic()-begun,3)
+            begun=time.monotonic()
             with LOCK:
                 if session.get('stopped'):raise Unavailable('Stopped before upload. Nothing sent.')
                 if RESERVED>=MAX_CLIPS:raise Unavailable('Approved allowance exhausted. Nothing sent.')
                 remaining=reserve() # durable atomic reservation before any provider call, never refunded
                 RESERVED+=1
+            db_seconds=round(time.monotonic()-begun,3)
             result=analyze_clip(mp4,session['target'],session['change'],session['state'].get('evidence',''),os.environ['META_API_KEY'])
             with LOCK:
                 if session.get('stopped'):raise Unavailable('Stopped. An already submitted request may finish at Meta; no result announced.')
+                result.setdefault('timings_seconds',{}).update({'transcode':transcode_seconds,'database':db_seconds})
                 session['state']=event_gate(result,session['state']); result=session['state'].copy()
                 result.update({'remaining':remaining,'observed_at':time.time(),'processing_seconds':round(time.time()-session['last'],1)})
             return self.reply(200,result)
