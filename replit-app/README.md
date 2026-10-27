@@ -1,6 +1,6 @@
 # EchoVision restricted clip watcher
 
-Python backend + accessible browser UI, Meta-hosted SAM3.1 and Standard Muse Spark. Source is public; service is not yet published or validated on a real phone. Inference fails closed unless all approved secrets/settings are present.
+Python backend + accessible browser UI, Meta-hosted SAM3.1 and Standard Muse Spark. Source is public. A restricted one-hour hosting pilot was published on October 27, 2026, with generated sample clips only. It is not validated on a real phone. Inference fails closed unless all approved secrets/settings are present.
 
 ## Run
 

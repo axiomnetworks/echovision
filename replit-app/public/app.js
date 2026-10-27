@@ -21,7 +21,7 @@ function stop(reason='Stopped. Camera is off.'){
   if(csrf)api('/api/stop',{csrf}).catch(()=>{});csrf='';
   $('preview').srcObject=null;$('preview').style.display='none';$('empty').hidden=false;
   for(const id of ['target','change','code','consent','nonpersonal','sample'])$(id).disabled=false;
-  $('start').disabled=!config.enabled;$('sample-start').disabled=!config.enabled;$('stop').disabled=true;
+  $('start').disabled=!config.enabled||config.sample_only;$('sample-start').disabled=!config.enabled;$('stop').disabled=true;
   $('fresh').textContent='No current observation. An already submitted request may still finish at Meta.';
   if(was)record(reason);announce(reason);
 }
