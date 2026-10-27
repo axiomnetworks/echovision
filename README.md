@@ -1,30 +1,25 @@
-# EchoVision standalone preview
+# EchoVision restricted clip watcher
 
-New Replit source is in [replit-app](replit-app). Run: `python3 replit-app/server.py`. AI is off. No media uploads or deployment. See its README for scope and checks.
+Python backend + accessible browser UI, Meta-hosted SAM3.1 and Standard Muse Spark. Source is public; service is not yet published or validated on a real phone. Inference fails closed unless all approved secrets/settings are present.
 
-## Earlier inactive Modal preparation
+## Run
 
-# EchoVision
+Python3.11+; `pip install -r requirements.txt`, then `python3 server.py` (or from repository root `python3 replit-app/server.py`). `PORT` defaults3000. ffmpeg ships via pinned imageio-ffmpeg. No Replit Agent or GPU needed.
 
-Web-only GitHub-to-Modal preparation. No Replit or local Mac required.
+## Private settings
 
-This repository starts with a CPU-only smoke test, not a working camera watcher. It contains no AI model, inference call, tracking, camera-image transport or real observations. No deployment has been verified.
+Set secrets through Replit Secrets, never source: META_API_KEY, ECHO_ACCESS_CODE, DATABASE_URL. Set operator configuration ECHO_INFERENCE_ENABLED=yes, ECHO_MAX_CLIPS (1..10), ECHO_ALLOWANCE_ID (unique authorization identifier), ECHO_EXPIRES_AT (explicit offset timestamp). Default all inference off. ECHO_PERSONAL_MEDIA=approved is a separate privacy gate; unset allows only nonpersonal samples. A browser checkbox is not operator authority to enable it.
 
-## Smoke-test contract
+PostgreSQL holds only the atomic approved-allowance counter, not media or targets. A reservation is never refunded and cannot replenish across restarts. One allowance ID cannot have its cap increased. New allowance IDs require new owner authority. Keep max1 deployment machine for predictable resource use and in-memory sessions. Sessions intentionally expire on restart; the budget does not. Paid production DB/deployment activation awaits explicit approval.
 
-- GET / returns {"status":"ok"}.
-- GET /auth-test requires X-Demo-Token matching the server's private DEMO_TOKEN; otherwise 401. Never put that token in frontend source.
-- Modal Secret echovision-auth must be configured securely before a permitted deployment.
-- No GPU; one container max. CPU, RAM, startup and warm time can still cost money. Scale-to-zero is not a free-cost guarantee.
+## Processing
 
-The workflow is intentionally manual-only, unlike the original push-triggered example. Creating/editing files or adding credentials does not auto-deploy. Its approval checkbox is an operator reminder, NOT a billing cap or evidence of permission.
+At most4seconds of silent video is transcoded to2fps/640x480, then submitted to SAM and Spark. Raw files are temporary and removed by the app. Requests set store=false, but this is not a promise of zero provider retention. Free-credit Meta billing currently warns of product improvement. Input token-count is context measurement, NOT final billed usage; no exact production cost guarantee follows from it. Reasoning max4000combined output tokens; no automatic retries. Incomplete/invalid answers never become successful events.
 
-Before the first run: confirm the existing Modal account/workspace, activation, applicable credits, net spend limit and gross usage cap; secure credentials; authorize a bounded test and endpoint audience; pin/test SDK dependencies and review action revisions. Credit coverage and spending controls have not been verified. A workflow green check alone does not verify endpoint behavior or cost controls.
+Capture pauses while analysis runs. These are delayed clips with gaps, not full continuous video. IDs are clip-local. A missing target is lost/uncertain view, not room exit. Two consecutive clip candidates support an alert but still may be wrong. No medical, navigation, safety-critical, identity or facial-recognition use.
 
-The included workflow is prepared, not dispatched. No token values appear in this repository. Only create repository secrets through secure handling. GitHub Secrets protect credential storage but workflows using them can access those credentials, so review future workflow/code changes.
+## Checks/status
 
-## Website stage
+32 offline tests pass, including real HTTP serving and ffmpeg transcoding. Earlier request/cost tests retained. Oct27 approved two-clip synthetic test completed: stationary red/blue shapes correctly returned watching/no movement twice. Exactly2SAM+2Spark+2tokenizer checks, no retries. Estimated provider-accounting cost$0.02589675, not settled billing. This does not validate motion/event success, browser-camera behavior or deployed Replit integration.
 
-GitHub Pages hosts static files, not Python backend code. A real camera website is not included in this smoke-test milestone. Adding a public frontend and wiring a live endpoint requires separate checks for cross-origin calls/authentication, HTTPS camera permissions, stale/lost view, Stop, session isolation, costs and actual device/screen-reader behavior. A fresh short-lived session alone is not an anti-abuse authorization gate.
-
-No Hugging Face account, license or model token is needed for this smoke test. Do not accept unused model licenses merely to follow an earlier example.
+`python3 -m unittest discover -v`; `node --check public/app.js`. Further live tests need separate approval; no public user upload is authorized by this README.
