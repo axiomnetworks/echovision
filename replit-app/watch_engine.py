@@ -1,5 +1,6 @@
 """Clip pipeline. No provider access occurs unless explicitly enabled by the operator."""
 import base64, json, os, re, subprocess, tempfile, time, urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 API='https://api.meta.ai/v1/'
 class Unavailable(Exception): pass
@@ -61,7 +62,7 @@ Use candidate only if the requested event itself is directly visible across mult
 Use lost_view if the target cannot be observed reliably. Never say someone left the room from disappearance.
 Keep evidence under 220 characters. Do not announce success or an event that is not visually supported.'''
 
-def analyze_clip(mp4,target,change,previous,key,call=provider):
+def analyze_clip(mp4,target,change,previous,key,call=provider,parallel=False):
     timings={}
     def timed(path,payload,key):
         begun=time.monotonic();value=call(path,payload,key)
@@ -72,20 +73,36 @@ def analyze_clip(mp4,target,change,previous,key,call=provider):
     sam={'model':'sam-3.1','input':[{'type':'message','role':'user','content':[
         {'type':'input_text','text':target},{'type':'input_video','video_url':video}]}],
         'metadata':{'include_confidence':'true'},'store':False,'stream':False}
-    tracks=track_summary(output_text(timed('responses',sam,key)))
-    if len(tracks['tracks'])>2 or any(len(v)>8 for v in tracks['tracks'].values()):
-        raise Unavailable('This test accepts at most two targets in eight frames. No reasoning request was made.')
-    prompt=json.dumps({'target':target,'requested_change':change,'previous_observation':previous,
-                        'clip_seconds_max':4,'segmentation':tracks},ensure_ascii=True)
-    content=[{'type':'input_text','text':prompt},{'type':'input_video','video_url':video}]
-    request={'model':'muse-spark-1.3','instructions':SYSTEM,
-        'input':[{'type':'message','role':'user','content':content}],
-        'store':False,'max_output_tokens':4000,'reasoning':{'effort':'low'},'stream':False}
-    count=timed('responses/input_tokens',{'model':request['model'],'instructions':SYSTEM,'input':request['input']},key)
-    tokens=count.get('input_tokens')
-    if type(tokens) is not int or not 0<tokens<=10000:
-        raise Unavailable('Reasoning input exceeds the configured allowance. No reasoning request was made.')
-    text=output_text(timed('responses',request,key)).strip()
+    def segmentation():
+        tracks=track_summary(output_text(timed('responses',sam,key)))
+        if len(tracks['tracks'])>2 or any(len(v)>8 for v in tracks['tracks'].values()):
+            raise Unavailable('This test accepts at most two targets in eight frames.')
+        return tracks
+    def reasoning(tracks=None):
+        data={'target':target,'requested_change':change,'previous_observation':previous,'clip_seconds_max':4}
+        if tracks is not None:data['segmentation']=tracks
+        else:data['segmentation_note']='Independent segmentation will be checked separately. Judge direct temporal visual evidence only.'
+        prompt=json.dumps(data,ensure_ascii=True)
+        content=[{'type':'input_text','text':prompt},{'type':'input_video','video_url':video}]
+        request={'model':'muse-spark-1.3','instructions':SYSTEM,
+            'input':[{'type':'message','role':'user','content':content}],
+            'store':False,'max_output_tokens':4000,'reasoning':{'effort':'low'},'stream':False}
+        count=timed('responses/input_tokens',{'model':request['model'],'instructions':SYSTEM,'input':request['input']},key)
+        tokens=count.get('input_tokens')
+        if type(tokens) is not int or not 0<tokens<=10000:
+            raise Unavailable('Reasoning input exceeds the configured allowance. No reasoning request was made.')
+        return output_text(timed('responses',request,key)).strip()
+    if parallel:
+        # Experimental only. Independent calls can be billed even if their sibling fails.
+        # No automatic retries and no partial event is ever returned.
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            sam_future=pool.submit(segmentation)
+            muse_future=pool.submit(reasoning)
+            tracks=sam_future.result()
+            text=muse_future.result()
+    else:
+        tracks=segmentation()
+        text=reasoning(tracks)
     try:
         result=json.loads(text)
         assert result['state'] in ('watching','candidate','lost_view','uncertain')
