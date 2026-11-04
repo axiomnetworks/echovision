@@ -1,0 +1,13 @@
+{
+  "name": "echovision",
+  "private": true,
+  "type": "module",
+  "description": "EchoVision - a public \"watch this for me\" prototype from Open Independence, built for the Meta Global AI Developer Hackathon.",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}
