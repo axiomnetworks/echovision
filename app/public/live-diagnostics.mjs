@@ -1,0 +1,14 @@
+import{safeErrorCode}from'./request-errors.mjs';
+/* Page-local, bounded, content-free diagnostics. Never persisted or sent. */
+const STATES={session:['off','ready','cleared'],listening:['off','starting','active','audio-ready','connecting','audio-flowing','mic-muted','transcript-received','question-received','ended','failed'],capture:['off','starting','permission-pending','stream-ready','track-muted','recording','clip-ready','recorder-timeout','active','stopped','failed'],inference:['idle','pending','quiet-baseline','quiet-absent','quiet-uncertain','quiet-unchanged','answer-ready','cancelled','failed'],playback:['idle','ready','playing','ended','paused','blocked','failed']};
+const CODES=new Set(['analyze','timing','session','start','ask','retarget','transcribe','forget','network','http','capture','listener','playback','script','reset','validation','token-count','vision','speech','transcription']);
+export class LiveDiagnostics{
+ constructor({now=()=>performance.now(),render=()=>{}}={}){this.now=now;this.render=render;this.reset();}
+ reset(){this.began=this.now();this.state={session:'off',listening:'off',capture:'off',inference:'idle',playback:'idle'};this.events=[];this.record('reset');}
+ set(area,value){if(!STATES[area]?.includes(value))return;this.state[area]=value;this.record(area==='listening'?'listener':area==='inference'?'ask':area,value);}
+ record(code,state,meta={}){if(!CODES.has(code))return;const row={atMs:Math.max(0,Math.round(this.now()-this.began)),code};if(Object.values(STATES).some(v=>v.includes(state)))row.state=state;for(const k of ['httpStatus','durationMs','visionMs','speechMs','totalServerMs','tokenCountMs','encodeMs','captureMs','bufferSpanMs','latestClipAgeMs','uploadMs','answerRoundTripMs','playbackQueueMs','speechFirstChunkMs'])if(Number.isFinite(meta[k])&&meta[k]>=0)row[k]=Math.round(meta[k]);if(meta.errorCode!==undefined)row.errorCode=safeErrorCode(meta.errorCode);this.events.push(row);if(this.events.length>80)this.events.shift();this.render(this.snapshot());}
+ snapshot(){return{state:{...this.state},events:this.events.map(x=>({...x}))};}
+}
+export function renderDiagnostics(root,data){if(!root)return;root.querySelector('[data-diagnostic-state]').textContent=Object.entries(data.state).map(([k,v])=>k+': '+v).join('. ')+'.';const list=root.querySelector('ol');list.replaceChildren(...data.events.map(e=>{const li=document.createElement('li');li.textContent=(e.atMs/1000).toFixed(1)+' sec: '+e.code+(e.state?' '+e.state:'')+(e.httpStatus!==undefined?' HTTP '+e.httpStatus:'')+(e.durationMs!==undefined?' '+e.durationMs+' ms':'')+(e.errorCode?' '+e.errorCode:'');return li;}));}
+
+export function diagnosticText(data){return Object.entries(data.state).map(([k,v])=>k+': '+v).join('. ')+'.\n'+data.events.map(e=>JSON.stringify(e)).join('\n');}
