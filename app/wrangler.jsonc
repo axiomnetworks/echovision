@@ -1,0 +1,57 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "echovision",
+  "main": "worker.mjs",
+  "compatibility_date": "2026-10-28",
+  // Serve the public prototype on the workers.dev subdomain.
+  "workers_dev": true,
+  // Static site assets (the accessible browser UI).
+  "assets": { "directory": "./public" },
+
+  // Durable Objects: session coordination, owner-login rate limiting,
+  // public launch budget, per-scene state, voice fixtures.
+  "durable_objects": {
+    "bindings": [
+      { "name": "LIVE", "class_name": "LiveCoordinator" },
+      { "name": "OWNER_LOGIN_LIMIT", "class_name": "OwnerLoginLimit" },
+      { "name": "PUBLIC_BUDGET", "class_name": "PublicLaunchBudget" },
+      { "name": "PUBLIC_SCENE", "class_name": "PublicScene" },
+      { "name": "SCENE_VOICE", "class_name": "SceneVoice" },
+      { "name": "VOICE_FIXTURE", "class_name": "VoiceFixture" }
+    ]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["LiveCoordinator", "OwnerLoginLimit", "PublicLaunchBudget", "PublicScene", "SceneVoice", "VoiceFixture"] }
+  ],
+
+  // Non-secret feature flags. The deployed values encode private grant and
+  // approval state, so this file carries safe placeholders only. Set real
+  // values per deployment with `wrangler secret put` or dashboard vars.
+  "vars": {
+    "ECHO_LIVE_ENABLED": "no",
+    "ECHO_PUBLIC_LIVE": "no",
+    "ECHO_PUBLIC_UNLIMITED": "no",
+    "ECHO_PUBLIC_CONTINUOUS": "no",
+    "ECHO_PUBLIC_PREVIEW": "no",
+    "ECHO_PUBLIC_DIRECT_VIDEO": "no",
+    "ECHO_PUBLIC_AUDIO_RESET": "no",
+    "ECHO_BUFFERED_TEST_APPROVED": "no",
+    "ECHO_PERSONAL_MEDIA": "unset",
+    "ECHO_SCENE_STT_ENABLED": "no",
+    "ECHO_SCENE_VOICE_ENABLED": "no",
+    "ECHO_SEMANTIC_ENABLED": "no",
+    "ECHO_VOICE_FIXTURE_ENABLED": "no",
+    "ECHO_PUBLIC_GRANT": "REPLACE_WITH_PRIVATE_GRANT_ID",
+    "ECHO_PUBLIC_EXPIRES": "none",
+    "ECHO_PUBLIC_MAX_COUNT": "0",
+    "ECHO_PUBLIC_MAX_VISION": "0",
+    "ECHO_PUBLIC_MAX_VOICE_CHARS": "0",
+    "ECHO_PUBLIC_MAX_STT_SECONDS": "0",
+    "ECHO_PUBLIC_SESSION_MS": "900000"
+  }
+}
+
+// Secrets (never commit values):
+//   wrangler secret put META_API_KEY              - Meta Model API key
+//   wrangler secret put ECHO_OWNER_SIGNING_KEY    - owner session HMAC key
+//   wrangler secret put ECHO_OWNER_PASSWORD_SHA256 - owner password hash
