@@ -14,4 +14,4 @@ export async function publicRoute(req,env){const path=new URL(req.url).pathname;
  if(!['/api/public/analyze','/api/public/start','/api/public/ask','/api/public/transcribe','/api/public/forget','/api/public/retarget'].includes(path))return json({error:'Unknown action'},404);
  const reader=req.body?.getReader();let size=0,parts=[];if(reader)for(;;){const{value,done}=await reader.read();if(done)break;size+=value.length;if(size>6000000){await reader.cancel();return json({error:'Media request too large'},413);}parts.push(value);}const bytes=new Uint8Array(size);let at=0;for(const b of parts){bytes.set(b,at);at+=b.length;}let p;try{p=JSON.parse(new TextDecoder().decode(bytes));if(Object.hasOwn(p,'_session'))throw Error();}catch{return json({error:'Invalid body'},400);}p._session=session.id;
  const actor=env.PUBLIC_SCENE.get(env.PUBLIC_SCENE.idFromName('visitor:'+session.id));return actor.fetch(new Request('https://scene.invalid/'+path.split('/').pop(),{method:'POST',body:JSON.stringify(p),signal:req.signal}));
-                                          }
+                                           }
