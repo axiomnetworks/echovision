@@ -1,7 +1,0 @@
-run = "python3 server.py"
-entrypoint = "server.py"
-modules = ["python-3.11"]
-
-[[ports]]
-localPort = 3000
-externalPort = 80
